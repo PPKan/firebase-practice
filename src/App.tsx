@@ -5,7 +5,13 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDocs,
+  onSnapshot,
+  query,
+  where,
+  orderBy,
+  serverTimestamp,
+  getDoc,
+  updateDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -13,20 +19,30 @@ function App() {
   // collection ref
   const colRef = collection(db, "books");
 
-  // get collection data
+  // queries
+  const q = query(colRef, orderBy("createdAt", "desc"));
+
+  // realtime collection data
+  // const [bookData, setBookData] = useState([] as any[]);
+
   useEffect(() => {
-    getDocs(colRef)
-      .then((snapshot) => {
-        let books = [] as any[];
-        snapshot.docs.forEach((doc) => {
-          books.push({ ...doc.data(), id: doc.id });
-        });
-        console.log(books);
-      })
-      .catch((err) => {
-        console.error(err);
-      });
+    return onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map((doc) => ({
+        ...doc.data(),
+        id: doc.id,
+      }));
+      // setBookData(data);
+      console.log(data);
+    });
   }, []);
+
+  // onSnapshot(colRef, (snapshot) => {
+  //   let books = [] as any[];
+  //   snapshot.docs.forEach((doc) => {
+  //     books.push({ ...doc.data(), id: doc.id });
+  //   });
+  //   console.log(books);
+  // });
 
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
@@ -37,22 +53,45 @@ function App() {
     addDoc(colRef, {
       title: title,
       author: author,
+      createdAt: serverTimestamp(),
     });
     setTitle("");
     setAuthor("");
   }
 
-  const [id, setId] = useState("");
+  const [deleteId, setDeleteId] = useState("");
 
   // delete book from database
   function handleDeleteBook(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const docRef = doc(db, "books", id);
+    const docRef = doc(db, "books", deleteId);
 
     deleteDoc(docRef).then(() => {
-      setId("");
+      setDeleteId("");
     });
   }
+
+  const [updateId, setUpdateId] = useState("");
+  const [updateTitle, setUpdateTitle] = useState("");
+  function handleSubmitBook(e: React.FormEvent<HTMLFormElement>): void {
+    e.preventDefault();
+
+    const docRef = doc(db, "books", updateId);
+    updateDoc(docRef, {
+      title: updateTitle,
+    }).then(() => {
+      setUpdateId("");
+      setUpdateTitle("");
+    });
+  }
+
+  //get a single document
+  // const docRef = doc(db, "books", "Jx1Afw3ZuzC2sROoUbmp");
+  // useEffect(() => {
+  //   return onSnapshot(docRef, (doc) => {
+  //     console.log(doc.data(), doc.id);
+  //   });
+  // }, []);
 
   return (
     <div className="App">
@@ -82,14 +121,34 @@ function App() {
         <input
           type="text"
           name="id"
-          value={id}
-          onChange={(data) => setId(data.target.value)}
+          value={deleteId}
+          onChange={(data) => setDeleteId(data.target.value)}
           required
         />
-
         <button type="submit" onSubmit={(e) => e.preventDefault}>
           delete a book
         </button>
+      </form>
+
+      <form className="update" onSubmit={handleSubmitBook}>
+        <label htmlFor="id">Document id:</label>
+        <input
+          type="text"
+          name="id"
+          value={updateId}
+          onChange={(data) => setUpdateId(data.target.value)}
+          required
+        />
+        <label htmlFor="id">Document Title:</label>
+        <input
+          type="text"
+          name="title"
+          value={updateTitle}
+          onChange={(data) => setUpdateTitle(data.target.value)}
+          required
+        />
+
+        <button>Update a book</button>
       </form>
     </div>
   );
